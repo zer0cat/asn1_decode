@@ -14,6 +14,14 @@ struct ASN_val
 	char *data;
 };
 
+
+typedef struct ASN_decoded ASN_decoded;
+struct ASN_decoded
+{
+	unsigned char *data;
+	unsigned short int len;
+};
+
 struct ASN1
 {
 	int nval;
@@ -23,4 +31,5 @@ struct ASN1
 
 void asn1_decode(LPBYTE pbData, DWORD cbData);
 int asn1_add_val(ASN_val asn_add);
-char * asn1_get_val(unsigned short int asn1_type, UINT16 elemNum);
+char * asn1_get_val(unsigned short int asn1_type, UINT16 *elemNum);
+void asn1_free(void);
