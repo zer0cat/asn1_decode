@@ -1,29 +1,24 @@
 #include "myASN.h"
 
-//simple memory wrappers, you can use malloc instead
-LPVOID mem_alloc(SIZE_T sz)
-{
-	return  HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sz);
-}
+#define MALLOC(x) HeapAlloc(GetProcessHeap(), 0, (x))
+#define REALLOC(x,y) HeapReAlloc(GetProcessHeap(),0,(x),(y))
+#define FREE(x) HeapFree(GetProcessHeap(), 0, (x))
 
-BOOL mem_free(LPVOID m)
-{
-	return HeapFree(GetProcessHeap(), 0, m);
-}
 
-LPVOID mem_realloc(LPVOID m,SIZE_T sz)
-{
-	return  HeapReAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, m, sz);
-}
-
-/* add new name and val in dyn array list */
-int add_data(ASN_val asn_add)
+/* add new name and val in struct nameval */
+int asn1_add_val(ASN_val asn_add)
 {
 	ASN_val *nvp;
 
-	if (asn1.asn_val == NULL) //perviy raz
+	if (asn_add.iType == -1) 
 	{
-		asn1.asn_val = (ASN_val *)mem_alloc(1 * sizeof(ASN_val));
+		printf("Error -1 not allowed \n");
+		return -1;
+	}
+
+	if (asn1.asn_val == NULL)
+	{
+		asn1.asn_val = (ASN_val *)MALLOC(1 * sizeof(ASN_val));
 		if (asn1.asn_val == NULL)
 		{
 			printf("error asn_val init\n");
@@ -34,7 +29,7 @@ int add_data(ASN_val asn_add)
 	}
 	else if (asn1.nval >= asn1.max)
 	{
-		nvp = (ASN_val*)mem_realloc(asn1.asn_val, (2 * asn1.max) * sizeof(ASN_val));
+		nvp = (ASN_val*)REALLOC(asn1.asn_val, (2 * asn1.max) * sizeof(ASN_val));
 		if (nvp == NULL) //perviy raz
 		{
 			printf("error realloc\n");
@@ -52,27 +47,51 @@ int add_data(ASN_val asn_add)
 	return asn1.nval++;
 }
 
-/* print all array, for debug propose */
-void listAll(void) 
+void listAll(void)
 {
+	printf("call listAll\n<== \n");
 	for (int i = 0; i < asn1.nval; i++)
 	{
 		printf("len %d  type %d data :", asn1.asn_val[i].iLen, asn1.asn_val[i].iType);
-		//hex_dump(asn1.asn_val[i].data, asn1.asn_val[i].iLen);
+		hex_dump(4, 16, 0, asn1.asn_val[i].data, asn1.asn_val[i].iLen);
 	}
-	printf(\n");
+	printf("==>\n");
+
+}
+
+
+char * asn1_get_val(unsigned short int asn1_type,UINT16 elemNum)
+{
+	UINT16 pos = 0;
+
+	for (int i = 0; i < asn1.nval; i++)
+	{
+		if (asn1.asn_val[i].iType == asn1_type)
+		{
+			pos++;
+
+			if (pos == elemNum) //сделать указателем на переменную, и возвращать туда длину
+			{
+				//asn1.asn_val[i].iLen;
+				return asn1.asn_val[i].data;
+			}
+		}
+	}
+
+	return NULL;
+
 }
 
 void asn1_free()
 {
 	for (int i = 0; i < asn1.nval; i++)
 	{
-		mem_free(asn1.asn_val[i].data);
+		FREE(asn1.asn_val[i].data);
 	}
-	mem_free(asn1.asn_val);
+	FREE(asn1.asn_val);
 }
 
-void DecodeASN(LPBYTE pbData, DWORD cbData)
+void asn1_decode(LPBYTE pbData, DWORD cbData)
 {
 	LPVOID decoded;
 	DWORD sz = 0;
@@ -86,9 +105,9 @@ void DecodeASN(LPBYTE pbData, DWORD cbData)
 			UINT16 asn_len = pa->pbData[1];
 			ASN_val tmp;
 
-			switch (asn_type) //http://citforum.ru/nets/semenov/4/44/asn44132.shtml
+			switch (asn_type)
 			{
-			case 0x30: //SEQUENCE and SEQUENCE OF - recursive parse data
+			case 0x30: //SEQUENCE and SEQUENCE OF - recursive search
 				DecodeASN(pa->pbData, pa->cbData);
 				break;
 
@@ -109,9 +128,9 @@ void DecodeASN(LPBYTE pbData, DWORD cbData)
 			P:
 				tmp.iLen = asn_len;
 				tmp.iType = asn_type;
-				tmp.data = mem_alloc(tmp.iLen);
+				tmp.data = MALLOC(tmp.iLen);
 				memcpy(tmp.data, pa->pbData + 2, asn_len);
-				add_data(tmp);
+				asn1_add_val(tmp);
 
 				printf("LEN : %d \n", asn_len);
 				hex_dump(4, 16, 0, pa->pbData + 2, asn_len);
