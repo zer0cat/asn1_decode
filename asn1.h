@@ -21,5 +21,6 @@ struct ASN1
 	ASN_val *asn_val;
 } asn1;
 
-int add_data(ASN_val asn_add);
-void listAll(void);
+void asn1_decode(LPBYTE pbData, DWORD cbData);
+int asn1_add_val(ASN_val asn_add);
+char * asn1_get_val(unsigned short int asn1_type, UINT16 elemNum);
